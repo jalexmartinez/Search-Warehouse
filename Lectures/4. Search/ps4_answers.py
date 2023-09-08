@@ -205,9 +205,6 @@ def q5_stochastic_motion(grid, goal, cost_step, collision_cost, success_prob):
 
     return value_grid, policy_grid
 
-    # You will need to be sure to return the following
-    return value, policy
-
 
 # --------------------------------------------------
 #  You can use the code below to test your solution

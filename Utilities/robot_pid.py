@@ -68,14 +68,23 @@ class Robot(object):
         # apply steering drift
         steering2 += self.steering_drift
 
-        # TODO: Finish filling in this method using a modified solution code
-        #  of Problem Set 3 Question 4 (do NOT return anything for this method)
-        # Finish code for this method here! Noise has already been applied above.
-        # You just have to write code for executing motion. No need to make a copy
-        # of the robot (res), just update self.x, self.y, and self.orientation.
+        turn = (distance2 / self.length) * np.tan(steering2)
 
-        # Execute motion here!
+        if abs(turn) > tolerance:
 
+
+            R = distance2 / turn
+
+            cx = self.x - (np.sin(self.orientation) * R)
+            cy = self.y + (np.cos(self.orientation) * R)
+            self.orientation = (self.orientation + turn) % (2.0 * np.pi)
+            self.x = cx + (np.sin(self.orientation) * R)
+            self.y = cy - (np.cos(self.orientation) * R)
+
+        else:
+            self.x = self.x + distance * np.cos(self.orientation)
+            self.y = self.y + distance * np.sin(self.orientation)
+            self.orientation = (self.orientation + turn) % (2.0 * np.pi)
 
     def __repr__(self):
         return '[x=%.5f y=%.5f orient=%.5f]' % (self.x, self.y, self.orientation)

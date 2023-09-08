@@ -55,7 +55,15 @@ path = [[0, 0],
 def smooth(path, weight_data=0.5, weight_smooth=0.1, tolerance=0.000001):
     # Make a deep copy of path into newpath
     newpath = deepcopy(path)
-    # TODO: ADD CODE HERE
+    change = tolerance
+    while change >= tolerance:
+        change = 0.0
+        for i in range(1, len(path)-1):
+            for j in range(len(path[0])):
+                aux = newpath[i][j]
+                newpath[i][j] += weight_data * (path[i][j] - newpath[i][j]) + weight_smooth * (newpath[i-1][j] \
+                + newpath[i+1][j] - 2.0 * newpath[i][j])
+                change += abs(aux - newpath[i][j])
 
     return newpath
 
@@ -87,9 +95,20 @@ robot.set(0.0, 1.0, 0.0)
 
 
 def run(robot, tau, n=100, speed=1.0):
+
     x_trajectory = []
     y_trajectory = []
-    # TODO: ADD CODE HERE
+
+    for i in range(n):
+        y_distance_to_front_axle = np.sin(robot.orientation) * robot.length
+        crosstrack_error = robot.y + y_distance_to_front_axle
+        steer = -tau * crosstrack_error
+        robot.move(steer, speed)
+        print(robot, steer)
+        x_trajectory.append(robot.x)
+        y_trajectory.append(robot.y)
+
+
     return x_trajectory, y_trajectory
 
 
@@ -117,14 +136,26 @@ robot = Robot()
 robot.set(0.0, 1.0, 0.0)
 
 
-def run(robot, tau_p, tau_d, n=100, speed=1.0):
+def run(robot, tau_p, tau_d, n=1000, speed=1.0):
     x_trajectory = []
     y_trajectory = []
-    # TODO: ADD CODE HERE
+
+    for i in range(n):
+        y_distance_to_front_axle = np.sin(robot.orientation) * robot.length
+        crosstrack_error = robot.y + y_distance_to_front_axle
+        if i == 0:
+            crosstrack_error_old = crosstrack_error
+        steer = -tau_p * crosstrack_error - tau_d*(crosstrack_error-crosstrack_error_old)
+        robot.move(steer, speed)
+        print(robot, steer)
+        x_trajectory.append(robot.x)
+        y_trajectory.append(robot.y)
+        crosstrack_error_old = crosstrack_error
+
     return x_trajectory, y_trajectory
 
 
-x_trajectory, y_trajectory = run(robot, 0.2, 3.0)
+x_trajectory, y_trajectory = run(robot, 0.01, 1)
 n = len(x_trajectory)
 
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8))
@@ -154,7 +185,20 @@ robot.set_steering_drift(10.0 / 180.0 * pi)
 def run(robot, tau_p, tau_d, tau_i, n=100, speed=1.0):
     x_trajectory = []
     y_trajectory = []
-    # TODO: ADD CODE HERE
+
+    crosstrack_error_total = 0.0
+    for i in range(n):
+        y_distance_to_front_axle = np.sin(robot.orientation) * robot.length
+        crosstrack_error = robot.y + y_distance_to_front_axle
+        crosstrack_error_total += crosstrack_error
+        if i == 0:
+            crosstrack_error_old = crosstrack_error
+        steer = -tau_p * crosstrack_error - tau_d*(crosstrack_error-crosstrack_error_old) - tau_i * crosstrack_error_total
+        robot.move(steer, speed)
+        print(robot, steer)
+        x_trajectory.append(robot.x)
+        y_trajectory.append(robot.y)
+        crosstrack_error_old = crosstrack_error
     return x_trajectory, y_trajectory
 
 
@@ -193,25 +237,63 @@ def make_robot():
 
 
 # NOTE: We use params instead of tau_p, tau_d, tau_i
-def run(robot, params, n=100, speed=1.0, printflag = False):
+def run(robot, params, n=200, speed=1.0, printflag = False):
     x_trajectory = []
     y_trajectory = []
+    tau_p = params[0]
+    tau_d = params[1]
+    tau_i = params[2]
     err = 0
-    #
-    # Copy and paste your solution code from the previous exercise (#17)
-    # and make any modifications as shown in the video
-    #
+    crosstrack_error_total = 0.0
+    for i in range(2*n):
+        y_distance_to_front_axle = np.sin(robot.orientation) * robot.length
+        crosstrack_error = robot.y + y_distance_to_front_axle
+        crosstrack_error_total += crosstrack_error
+        if i == 0:
+            crosstrack_error_old = crosstrack_error
+        steer = -tau_p * crosstrack_error - tau_d*(crosstrack_error-crosstrack_error_old) - tau_i * crosstrack_error_total
+        robot.move(steer, speed)
+        print(robot, steer)
+        x_trajectory.append(robot.x)
+        y_trajectory.append(robot.y)
+        crosstrack_error_old = crosstrack_error
+        if i >= n:
+            err += crosstrack_error  ** 2
+        if printflag:
+            print(robot, steer/pi *180.0)
+
     return x_trajectory, y_trajectory, err / n
 
 
 # Make this tolerance bigger if you are timing out!
-def twiddle(tol=0.001):  # tolerance changed towards end of solution video to 0.01
+def twiddle(tol=0.0001):  # tolerance changed towards end of solution video to 0.01
     # Don't forget to call `make_robot` before every call of `run`!
     params = [0.0, 0.0, 0.0]
-    dparams = [1.0, 1.0, 1.0]
+    dparams = [0.01, 0.01, 0.01]
     robot = make_robot()
     x_trajectory, y_trajectory, best_err = run(robot, params)
-    # TODO: CODE TWIDDLE LOOP HERE
+    n = 0
+
+    while sum(dparams) > tol:
+        for i in range(len(params)):
+            params[i] += dparams[i]
+            robot = make_robot()
+            x_trajectory, y_trajectory, err = run(robot, params)
+            if err < best_err:
+                best_err = err
+                dparams[i] *= 1.1
+            else:
+                params[i] -= 2.0 * dparams[i]
+                robot = make_robot()
+                x_trajectory, y_trajectory, err = run(robot,params)
+                if err < best_err:
+                    best_err = err
+                    dparams[i] *= 1.1
+                else:
+                    params[i] += dparams[i]
+                    dparams[i] *= 0.9
+
+        n += 1
 
     return params, best_err
 
